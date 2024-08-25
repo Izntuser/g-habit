@@ -26,7 +26,6 @@ class HabitsController extends Controller
     }
 
     /**
-     * @throws HabitNotFoundException
      */
     public function updateUserHabit(HabitRequest $request): JsonResponse
     {

@@ -2,39 +2,33 @@
 namespace App\Services;
 
 use App\Exceptions\HabitNotFoundException;
+use App\Models\DefaultHabit;
 use App\Models\User;
 use App\Models\UserHabit;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 
 class HabitsService
 {
-    public function createHabit(array $request): UserHabit
+    protected function getUser(): Authenticatable|User
     {
-        return UserHabit::create([
-            'user_id' => Auth::user()->id,
-            'name' => $request['name'],
-            'description' => $request['description'],
-            'type' => $request['type'],
-            'goal' => $request['goal'],
-            'reward' => $request['reward'],
-            'week_days_bitmask' => get_bitmask_from_days($request['week_days']),
-            'default_unit_id' => $request['default_unit_id'] ?? null,
-            'user_unit_id' => $request['user_unit_id'] ?? null,
-            'due_to' => $request['due_to'] ?? null,
-        ]);
+        return Auth::user();
     }
 
-    /**
-     * @throws HabitNotFoundException
-     */
+    public function createHabit(array $request): UserHabit
+    {
+        return UserHabit::create($this->prepareDataForHabit($request));
+    }
+
     public function updateHabit(array $request): array
     {
-        $habit = UserHabit::where('id', $request['habit_id'])->where('user_id', Auth::user()->id)->first();
-        if (!$habit) {
-            throw new HabitNotFoundException("Habit not found");
-        }
+        $user = $this->getUser();
+        $habit = UserHabit::where('id', $request['habit_id'])->where('user_id', $user->id)->firstOrFail();
 
-        return $this->extracted($habit, $request); // TODO: update habit log goal if it exists today
+        $habit->update($this->prepareDataForHabit($request, $habit));
+        $user->todayHabitLog($habit['id'])->update(['goal' => $habit['goal']]);
+
+        return $habit->fresh()->toArray();
     }
 
     /**
@@ -42,34 +36,41 @@ class HabitsService
      */
     public function getUserHabits(): array
     {
-        $userId = Auth::user()->id;
+        $userId = $this->getUser()->id;
         $habits = UserHabit::where('user_id', $userId)->get();
-        if (!$habits || count($habits) < 1) {
-            throw new HabitNotFoundException("Habit with user_id {$userId} not found.");
+
+        if ($habits->isEmpty()) {
+            throw new HabitNotFoundException("No habits found for user_id {$userId}.");
         }
 
         return $habits->toArray();
     }
 
-    /**
-     * @param UserHabit $habit
-     * @param array $request
-     * @return array
-     */
-    public function extracted(UserHabit $habit, array $request): array
+    protected function prepareDataForHabit(array $request, UserHabit $habit = null): array
     {
-        $habit->update([
+        $user = $this->getUser();
+        return [
+            'user_id' => $user->id,
             'name' => $request['name'],
             'description' => $request['description'],
             'type' => $request['type'],
             'goal' => $request['goal'],
-            'reward' => $request['reward'], // TODO: set 20 coins as a default reward.
+            'reward' => $this->calculateReward($request, $habit),
             'week_days_bitmask' => get_bitmask_from_days($request['week_days']),
-            'default_unit_id' => $request['default_unit_id'],
-            'user_unit_id' => $request['user_unit_id'],
-            'due_to' => $request['due_to'],
-        ]);
+            'default_unit_id' => $request['default_unit_id'] ?? $habit?->default_unit_id,
+            'user_unit_id' => $request['user_unit_id'] ?? $habit?->user_unit_id,
+            'due_to' => $request['due_to'] ?? $habit?->due_to,
+        ];
+    }
 
-        return $habit->toArray();
+    protected function calculateReward(array $request, UserHabit $habit = null): int
+    {
+        $user = $this->getUser();
+        $date = now($user->timezone)->format('Y-m-d');
+        if ($user->subscription_end && $user->subscription_end >= $date) {
+            return $request['reward'];
+        }
+
+        return $habit?->reward ?? DefaultHabit::DEFAULT_REWARD;
     }
 }

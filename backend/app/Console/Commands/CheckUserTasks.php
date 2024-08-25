@@ -6,6 +6,7 @@ use App\Jobs\ProcessUserTasks;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class CheckUserTasks extends Command
 {
@@ -21,20 +22,24 @@ class CheckUserTasks extends Command
      *
      * @var string
      */
-    protected $description = 'Logs user tasks.';
+    protected $description = 'Store in habit_logs user tasks if they were not created.';
 
     /**
      * Execute the console command.
      */
     public function handle(): void
     {
+        Log::info('CheckUserTasks started');
         $now = Carbon::now('UTC');
 
         User::chunk(200, function ($users) use ($now) {
             foreach ($users as $user) {
-                $localTime = $now->copy()->setTimezone($user->time_zone);
+                $localTime = $now->copy()->setTimezone($user->timezone);
+                $localMidnight = $now->copy()->setTimezone($user->timezone)->startOfDay();
 
-                if ($localTime->format('H:i') == '00:00') {
+                $diffInMinutes = $localTime->diffInMinutes($localMidnight);
+
+                if ($diffInMinutes >= 0 && $diffInMinutes < 5) {
                     ProcessUserTasks::dispatch($user);
                 }
             }

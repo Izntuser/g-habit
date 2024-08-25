@@ -24,6 +24,8 @@ class DefaultHabit extends Model
     const TYPE_BUILDING = 1;
     const TYPE_QUITTING = 2;
 
+    const DEFAULT_REWARD = 20;
+
     public function getWeekDaysAttribute(): array
     {
         return get_days_from_bitmask($this->week_days_bitmask);
