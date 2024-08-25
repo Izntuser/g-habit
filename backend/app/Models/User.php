@@ -3,10 +3,12 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -24,6 +26,10 @@ class User extends Authenticatable
         'password',
         'timezone',
         'rewa_coins',
+        'subscription_end',
+        'avatar',
+        'lang',
+        'on_validation',
     ];
 
     /**
@@ -57,5 +63,31 @@ class User extends Authenticatable
     public function habitLogs(): HasMany
     {
         return $this->hasMany(HabitLog::class);
+    }
+
+    public function todayHabitLog($habitId): HasMany
+    {
+        $currentDateTime = Carbon::now($this->timezone);
+        $date = $currentDateTime->format('Y-m-d');
+        return $this->habitLogs()
+            ->where('habit_id', $habitId)
+            ->where('date', $date);
+    }
+
+    public function yesterdayHabitLogs(): HasMany
+    {
+        $currentDateTime = Carbon::now($this->timezone);
+        $yesterdayDate = $currentDateTime->subDay()->format('Y-m-d');
+        return $this->habitLogs()
+            ->where('date', $yesterdayDate);
+    }
+
+    public function yesterdayHabits(): HasMany
+    {
+        $currentDateTime = Carbon::now($this->timezone);
+        $yesterdayWeekDay = $currentDateTime->subDay()->format('l');
+        $yesterdayWeekDayBitmask = get_bitmask_from_days([$yesterdayWeekDay]);
+        return $this->habits()
+            ->where('week_days_bitmask', '&', $yesterdayWeekDayBitmask);
     }
 }

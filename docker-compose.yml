@@ -54,5 +54,15 @@ services:
     networks:
       - dev
 
+  cron:
+    build:
+      context: ./backend
+      dockerfile: cron.dockerfile
+    container_name: cron
+    volumes:
+      - ./backend:/var/www/html
+    networks:
+      - dev
+
 networks:
   dev:

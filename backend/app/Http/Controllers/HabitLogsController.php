@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\HabitIsNotCompleteException;
+use App\Exceptions\HabitLogExistsException;
 use App\Exceptions\HabitNotFoundException;
+use App\Exceptions\RewardAlreadyClaimedException;
 use App\Http\Requests\ClaimHabitRewardRequest;
 use App\Http\Requests\HabitLogsRequest;
 use App\Models\HabitLog;
@@ -20,7 +23,7 @@ class HabitLogsController extends Controller
     }
 
     /**
-     * @throws HabitNotFoundException
+     * @throws HabitLogExistsException
      */
     public function createHabitLog(HabitLogsRequest $request): JsonResponse
     {
@@ -45,11 +48,12 @@ class HabitLogsController extends Controller
 
 
     /**
-     * @throws HabitNotFoundException
+     * @throws HabitIsNotCompleteException
+     * @throws RewardAlreadyClaimedException
      */
     public function claimHabitReward(ClaimHabitRewardRequest $request): JsonResponse
     {
         $habitLog = $this->habitLogsService->claimHabitReward($request['habit_log_id']);
-        return response()->json(['message' => 'Update habit log', 'habit_log' => $habitLog]);
+        return response()->json(['message' => 'Claim habit reward', 'habit_log' => $habitLog]);
     }
 }

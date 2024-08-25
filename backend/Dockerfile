@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     libonig-dev \
     libxml2-dev \
+    procps \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) pdo pdo_pgsql mbstring exif pcntl bcmath gd zip
 
@@ -38,4 +39,4 @@ COPY --chown=www-data:www-data . /var/www
 EXPOSE 9000
 
 # Start PHP-FPM server
-CMD ["php-fpm"]
+CMD ["/var/www/entrypoint.sh"]

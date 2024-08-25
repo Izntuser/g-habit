@@ -24,7 +24,7 @@ class LoginUserRequest extends FormRequest
         return [
             'email' => ['required', 'email'],
             'password' => ['required'],
-            'timezone' => ['required', 'string'],
+            'timezone' => ['required', 'timezone:all'],
         ];
     }
 }
